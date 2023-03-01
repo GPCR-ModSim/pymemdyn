@@ -543,7 +543,7 @@ class Cholesterol(Compound):
        cho_count = 0
        for line in open(self.pdb, "r"):
            print(line.split())
-           if len(line.split()) > 2:
+           if len(line.split()) > 3:
                if line.split()[3] in ["CHO", "CLR"]:
                    cho_count += 1
        return cho_count / 74 #Each CHO has 74 atoms
