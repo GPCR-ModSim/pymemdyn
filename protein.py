@@ -29,8 +29,8 @@ except:
 
 class System(object):
     def __init__(self, **kwargs):
-        protein_res_names = ["ALA", "ARG", "ASN", "ASP", "CYS", "CYX", "GLN", "GLU", "GLY", "HIS", 
-                             "HIE", "HID", "HIP", "HISE", "HISD", "HISH", "ILE", "LEU", "LYS", 
+        protein_res_names = ["ALA", "ARG","ARN", "ASN", "ASP", "ASH", "CYS", "CYX", "GLN", "GLH", "GLU", "GLY", "HIS", 
+                             "HIE", "HID", "HIP", "HISE", "HISD", "HISH", "ILE", "LEU", "LYS", "LYN", 
                              "MET", "PHE", "PRO", "SER", "THR", "TRP", "TYR", "VAL", ]
 
         self.pdb = kwargs["pdb"]
@@ -249,7 +249,7 @@ class Monomer(object):
 
     def _setRes(self):
         """
-        Change Histidines and Cysteins in pdb to the format preferred by gromacs.
+        Change Histidines and Cysteins and Protonated ASP and GLU and Deprotonated LYS pdb to the format preferred by gromacs.
         """
         tgt = open(self.pdb.replace(".pdb", "-his.pdb"), "w")
         self.pdb_his = tgt.name
@@ -264,6 +264,14 @@ class Monomer(object):
                     tgt.write(line.replace('HIP ','HISH'))
                 elif line.split()[3] == "CYX":
                     tgt.write(line.replace('CYX ','CYS '))
+                elif line.split()[3] == "ASH":
+                    tgt.write(line.replace('ASH ','ASPH'))
+                elif line.split()[3] == "ASH":
+                    tgt.write(line.replace('GLH ','GLUH'))
+                elif line.split()[3] == "LYN":
+                    tgt.write(line.replace('LYN ','LYSN'))
+                elif line.split()[3] == "ARN":
+                    tgt.write(line.replace('ARN ','ARGN'))
                 else:
                     tgt.write(line)
             else:
