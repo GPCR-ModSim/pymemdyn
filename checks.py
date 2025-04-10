@@ -324,18 +324,24 @@ class CheckProtein():
         #         # Renumber residues in chains
         #         self.rename_segments(segment_ids=chains,      
         #                             renumber_residues=[first_res, first_res, first_res, first_res])
+        
+        # Class definition for MODELLER refinement using the LoopModel method
+        from modeller.automodel import LoopModel
+        class MyLoops(LoopModel):
+            def select_atoms(self):
+                from modeller import selection
+                return selection(self.select_loop_atoms()) # Select all atoms near gaps in the alignment for loop optimization
 
         env = modeller.Environ()
         env.io.atom_files_directory = ['.', '../atom_files']
 
-        a = automodel.AutoModel(env,
-                                alnfile  = f'alignment_{kwargs["chain"]}.pir',  
+        a = MyLoops(env, alnfile  = f'alignment_{kwargs["chain"]}.pir',  
                                 knowns   = kwargs["knowns"],     
                                 sequence = f'refined_{kwargs["chain"]}')
 
-        a.starting_model= 1              
-        a.ending_model  = 1              
-        a.md_level = None                 
+        a.loop.starting_model= 1              
+        a.loop.ending_model  = 1              
+        a.loop.md_level = None                 
 
         a.make()
 
