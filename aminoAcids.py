@@ -8,11 +8,15 @@ class AminoAcids():
         self.codes321 = {
             'ALA': 'A',
             'ARG': 'R',
+            'ARN': 'R',
             'ASN': 'N',           
             'ASP': 'D',
+            'ASH': 'D',
             'CYS': 'C',
+            'CYX': 'C',
             'GLN': 'Q',
             'GLU': 'E',
+            'GLH': 'E',
             'GLY': 'G',
             'HIS': 'H',
             'HIE': 'H',
@@ -21,6 +25,7 @@ class AminoAcids():
             'ILE': 'I',
             'LEU': 'L',
             'LYS': 'K',
+            'LYN': 'K',
             'MET': 'M',
             'PHE': 'F',
             'PRO': 'P',
@@ -69,6 +74,11 @@ class AminoAcids():
                 O = 1,
                 C = 6,
                 ),
+            'ARN': Counter(
+                N = 4,
+                O = 1,
+                C = 6,
+                ),
             'ASN': Counter(
                 N = 2,
                 O = 2,
@@ -79,7 +89,18 @@ class AminoAcids():
                 O = 3,
                 C = 4
             ),
+            'ASH': Counter(
+                N = 1,
+                O = 3,
+                C = 4
+            ),
             'CYS': Counter(
+                N = 1,
+                O = 1,
+                C = 3,
+                S = 1
+            ),
+            'CYX': Counter(
                 N = 1,
                 O = 1,
                 C = 3,
@@ -91,6 +112,11 @@ class AminoAcids():
                 C = 5
             ),
             'GLU': Counter(
+                N = 1,
+                O = 3,
+                C = 5
+            ),
+            'GLH': Counter(
                 N = 1,
                 O = 3,
                 C = 5
@@ -131,6 +157,11 @@ class AminoAcids():
                 C = 6
             ),
             'LYS': Counter(
+                N = 2,
+                O = 1,
+                C = 6
+            ),
+            'LYN': Counter(
                 N = 2,
                 O = 1,
                 C = 6
