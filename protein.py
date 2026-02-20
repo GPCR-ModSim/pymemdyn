@@ -29,9 +29,9 @@ except:
 
 class System(object):
     def __init__(self, **kwargs):
-        protein_res_names = ["ALA", "ARG", "ASN", "ASP", "CYS", "CYX", "GLN", "GLU", "GLY", "HIS", 
+        protein_res_names = ["ALA", "ARG", "ASN", "ASP", "ASH", "CYS", "CYX", "GLN", "GLU", "GLH", "GLY", "HIS", 
                              "HIE", "HID", "HIP", "HISE", "HISD", "HISH", "ILE", "LEU", "LYS", 
-                             "MET", "PHE", "PRO", "SER", "THR", "TRP", "TYR", "VAL", ]
+                             "MET", "PHE", "PRO", "SER", "THR", "TRP", "TYR", "VAL",]
 
         self.pdb = kwargs["pdb"]
 
