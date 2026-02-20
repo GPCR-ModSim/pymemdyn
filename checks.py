@@ -9,6 +9,7 @@ check_logger = logging.getLogger('pymemdyn.checks')
 try:
     import modeller 
     from modeller import automodel
+    from modeller.automodel import *  # from modeller import automodel may not work on some versions of modeller
 except:
     check_logger.warning("""!! WARNING !! : No installation of MODELLER was found.
         Missing loops and/or sidechains cannot be remodelled and will cause errors.""")
@@ -212,6 +213,7 @@ class CheckProtein():
 
             first_res_ID = self.first_res_ID
 
+            replacements = [] # Will collect indexes and the loop sequence strings for the template and the target model to replace them after
             for loopstart in list(missingLoc.keys()):
                 loop = int(loopstart[1:])
                 self.logger.debug('loop: {}\n'.format(loop))
@@ -239,14 +241,23 @@ class CheckProtein():
                 num_aa = math.ceil(dist / aa_dist)     
                 self.logger.debug('\tnum_aa: {}\n'.format(num_aa))
 
+                ############################## Patch for modeling multiple broken chains. Commented code (previous) shift the indexes when multiple loops need to be modeled
                 # Determine which chain we are in (and how many '/'-signs we need to ignore)
-                ignore_chain_characters = self.chains.index(chain)
-                
-                start_seq_index = loop - first_res_ID +1 - ignore_chain_characters  # (we ignored the beginloop)
-                end_seq_index = target - first_res_ID - ignore_chain_characters
+                #ignore_chain_characters = self.chains.index(chain)
+                #start_seq_index = loop - first_res_ID + 1 - ignore_chain_characters
+                #end_seq_index = target - first_res_ID - ignore_chain_characters
+                chain_start_index = 0
+                for i, c in enumerate(pdbseq):
+                    if c == '/':
+                        chain_start_index = i + 1
+                # Use chain_start_index in index calculations
+                start_seq_index = loop - first_res_ID + 1 + chain_start_index
+                end_seq_index = target - first_res_ID + chain_start_index
                 self.logger.debug('\tstart: {}'.format(start_seq_index))
                 self.logger.debug('\tend:   {}\n'.format(end_seq_index))
-
+                
+                ############################## Patch ends here
+                # Modifications in the sequence
                 loop_seq_dash = pdbseq[start_seq_index:end_seq_index]     # '----'
                 before = pdbseq[start_seq_index-2:start_seq_index]        # 'AB'
                 after = pdbseq[end_seq_index:end_seq_index+2]             # 'BA'
@@ -256,12 +267,19 @@ class CheckProtein():
 
                 gaps = before + "A" * num_aa + after        # 'ABAABA'
                 loop_replace = before + num_aa *'-' + after # 'AB--BA'
+                polyA_seq = 'A' * num_aa                    # '  AA  '
+                gap_seq = '-' * num_aa                      # '  --  '
                 
-                self.logger.debug('\tgaps:     {}\n'.format(gaps))
-                self.logger.debug('\tloop_rep: {}\n'.format(loop_replace))
-                
-                mod_seq = mod_seq.replace(loop_seq, gaps)
-                tmpl_seq = tmpl_seq.replace(loop_seq, loop_replace)
+                self.logger.debug('\tgaps (target seq):     {}\n'.format(gaps))
+                self.logger.debug('\tloop_rep (target seq): {}\n'.format(loop_replace))
+
+                replacements.append((start_seq_index, end_seq_index, polyA_seq, gap_seq))
+            
+            # Replace the missing loops with poly A sequence (target sequence) or gaps (template)
+            # Apply sequence replacements in reverse order to avoid shifting the indexes
+            for start_seq_index, end_seq_index, polyA_seq, gap_seq in sorted(replacements, key=lambda x: x[0], reverse=True):
+                mod_seq = mod_seq[:start_seq_index] + polyA_seq + mod_seq[end_seq_index:]
+                tmpl_seq = tmpl_seq[:start_seq_index] + gap_seq + tmpl_seq[end_seq_index:]
             
             # while tmpl_seq.endswith('-'):
             #     tmpl_seq = tmpl_seq[:-1]
@@ -270,8 +288,8 @@ class CheckProtein():
             mod_seq += "*"
             tmpl_seq += "*"
 
-            self.logger.debug(mod_seq)
-            self.logger.debug(tmpl_seq)
+            self.logger.debug('\tmod_seq: {}\n'.format(mod_seq))
+            self.logger.debug('\ttmpl_seq: {}\n'.format(tmpl_seq))
 
             self.logger.debug("these lengths should be equal: {}, {}".format(len(mod_seq), len(tmpl_seq)))
 
@@ -325,23 +343,32 @@ class CheckProtein():
         #         self.rename_segments(segment_ids=chains,      
         #                             renumber_residues=[first_res, first_res, first_res, first_res])
         
-        # Class definition for MODELLER refinement using the LoopModel method
-        from modeller.automodel import LoopModel
-        class MyLoops(LoopModel):
-            def select_atoms(self):
-                from modeller import selection
-                return selection(self.select_loop_atoms()) # Select all atoms near gaps in the alignment for loop optimization
+        # Class definition for MODELLER refinement using the AutoModel method
 
         env = modeller.Environ()
         env.io.atom_files_directory = ['.', '../atom_files']
+        aln = modeller.Alignment(env, file = f'alignment_{kwargs["chain"]}.pir')
 
-        a = MyLoops(env, alnfile  = f'alignment_{kwargs["chain"]}.pir',  
+        class MyModel(AutoModel):
+            def select_atoms(self):
+                from modeller import selection
+                # Select all insertions/deletions in the alignment for optimization:
+                return selection(self.loops(aln, # alignment as modeller.Alignment object
+                                            minlength=1, # Minimum length of the insertion/deletion
+                                            maxlength=20, # Maximum length of the insertion/deletion
+                                            insertion_ext=1, # Extend selection by this many residues at each side of the insertion
+                                            deletion_ext=1, # Extend selection by this many residues at each side of the deletion
+                                            include_termini=True # Include terminal insertions/deletions
+                                            )) 
+
+
+
+        a = MyModel(env, alnfile  = f'alignment_{kwargs["chain"]}.pir',  
                                 knowns   = kwargs["knowns"],     
                                 sequence = f'refined_{kwargs["chain"]}')
 
-        a.loop.starting_model= 1              
-        a.loop.ending_model  = 1              
-        a.loop.md_level = None                 
+        a.starting_model= 1              
+        a.ending_model  = 1                          
 
         a.make()
 
