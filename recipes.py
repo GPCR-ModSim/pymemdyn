@@ -457,6 +457,20 @@ class BasicRelax(object):
                     self.recipe[f"set_stage_init{const}"]["options"]["src_files"].append(f"{var}.itp")
 
         # TODO: add section for copying .itp for oligomers (posre is handled in relax)
+       
+        self.steps.append("trjconv_to_pdb_halfway")
+
+        self.recipe["trjconv_to_pdb_halfway"] = {
+            "gromacs": "trjconv",
+            "options": {
+                "src": "eq/200/confout200.gro",
+                "src2": "eq/200/topol.tpr",
+                "tgt": "confout_halfway.pdb",
+                "pbc": "mol",
+                "ur": "compact"
+            },
+            "input": "1\n0\n"
+        }
 
         self.breaks = {}
 
@@ -566,7 +580,7 @@ class BasicBWRelax(object):
                                                          "../disre.itp"],
                                            "repo_files": ["dres.mdp"]}},
 
-            "grompp": {"gromacs": "grompp",  # 3
+            "grompp": {"gromacs": "grompp",  # 4
                        "options": {"src": "eqProd/dres.mdp",
                                    "src2": "eqProd/confout200.gro",
                                    "top": "topol.top",
@@ -609,7 +623,7 @@ class BasicCollectResults(object):
         dict *breaks* as points where object calling can put their vars.
         """
         self.breaks = {}
-        self.steps = ["trjcat", "trjconv", "rms1", "rms2",
+        self.steps = ["trjcat", "trjconv", "trjconv_to_pdb", "rms1", "rms2",
                       "rms3", "rmsf", "tot_ener", "temp", "pressure",
                       "volume", "set_stage_init", "grompp",
                       "set_end", "set_end_2", "set_end_3", 
@@ -631,6 +645,15 @@ class BasicCollectResults(object):
                                                "tgt": "traj_pymol.xtc",
                                                "ur": "compact",
                                                "skip": "2",
+                                               "pbc": "mol"},
+                                   "input": "1\n0\n"},
+
+                       "trjconv_to_pdb":
+                           {"gromacs": "trjconv",  # toBeNumbered
+                                   "options": {"src": "confout.gro",
+                                               "src2": "topol.tpr",
+                                               "tgt": "confout.pdb",
+                                               "ur": "compact",
                                                "pbc": "mol"},
                                    "input": "1\n0\n"},
 
