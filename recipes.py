@@ -465,7 +465,7 @@ class BasicRelax(object):
             "options": {
                 "src": "eq/200/confout200.gro",
                 "src2": "eq/200/topol.tpr",
-                "tgt": "confout_halfway.pdb",
+                "tgt": "eq/200/confout200.pdb",
                 "pbc": "mol",
                 "ur": "compact"
             },
@@ -628,7 +628,7 @@ class BasicCollectResults(object):
                       "volume", "set_stage_init", "grompp",
                       "set_end", "set_end_2", "set_end_3", 
                       "set_end_4", "set_end_5", "set_end_6",
-                      "tar_it"]
+                      "set_end_7", "tar_it"]
 
         self.recipe = {"trjcat":
                            {"gromacs": "trjcat",  # 1
@@ -766,6 +766,12 @@ class BasicCollectResults(object):
                                                  "src_files": ["md_eqBW.log",
                                                                "md_eqCA.log"],
                                                  "tgt_dir": "finalOutput/logs"}},
+                       "set_end_7":
+                           {"command": "set_stage_init",  # toBeNumbered
+                                     "options": {"src_dir": "",
+                                                 "src_files": ["eqProd/confout.pdb",
+                                                               "eq/200/confout200.pdb"],
+                                                 "tgt_dir": "finalOutput"}},
 
                        "tar_it":
                            {"command": "tar_out", # 19
