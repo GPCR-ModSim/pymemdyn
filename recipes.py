@@ -409,7 +409,7 @@ class BasicRelax(object):
             tgt_dir = "eq/{0}".format(const)
             src_dir = "eq"
             self.recipe["relax%d" % const] = \
-                {"command": "relax",  # 1, 4, 7, 10
+                {"command": "relax",  # 1, 5, 9, 13
                  "options": {"const": const,
                              "src_dir": src_dir,
                              "tgt_dir": tgt_dir,
@@ -417,7 +417,7 @@ class BasicRelax(object):
                              "mdp": "eq.mdp"}}
             
             self.recipe["set_stage_init%d" % const] = \
-                {"command": "set_stage_init",  # 4
+                {"command": "set_stage_init",  # 2, 6, 10, 14
                  "options": {"src_dir": "",
                              "src_files": ["topol.top",
                                            "ffoplsaa_mod.itp",
@@ -430,7 +430,7 @@ class BasicRelax(object):
                              "tgt_dir": "eq/{0}".format(const)}}   
 
             self.recipe["grompp%d" % const] = \
-                {"gromacs": "grompp",  # 2, 5, 8, 11
+                {"gromacs": "grompp",  # 3, 7, 11, 15
                  "options": {"src": os.path.join(tgt_dir, "eq{0}.mdp".format(const)),
                              "src2": os.path.join(src_dir, "confout{0}.gro".format(const+200)),
                              "top": os.path.join(tgt_dir, "topol.top"),
@@ -439,7 +439,7 @@ class BasicRelax(object):
                              "index": "index.ndx"}}
 
             self.recipe["mdrun%d" % const] = \
-                {"gromacs": "mdrun",  # 3, 6, 9, 12
+                {"gromacs": "mdrun",  # 4, 8, 12, 16
                  "options": {"dir": tgt_dir,
                              "src": "topol.tpr",
                              "tgt": "traj.trr",
@@ -458,14 +458,14 @@ class BasicRelax(object):
 
         # TODO: add section for copying .itp for oligomers (posre is handled in relax)
        
-        self.steps.append("trjconv_to_pdb_halfway")
+        self.steps.append("trjconv_to_pdb_halfway") # 17
 
         self.recipe["trjconv_to_pdb_halfway"] = {
             "gromacs": "trjconv",
             "options": {
-                "src": "eq/200/confout200.gro",
+                "src": "eq/confout200.gro",
                 "src2": "eq/200/topol.tpr",
-                "tgt": "eq/200/confout200.pdb",
+                "tgt": "eq/confout200.pdb",
                 "pbc": "mol",
                 "ur": "compact"
             },
@@ -770,7 +770,7 @@ class BasicCollectResults(object):
                            {"command": "set_stage_init",  # toBeNumbered
                                      "options": {"src_dir": "",
                                                  "src_files": ["eqProd/confout.pdb",
-                                                               "eq/200/confout200.pdb"],
+                                                               "eq/confout200.pdb"],
                                                  "tgt_dir": "finalOutput"}},
 
                        "tar_it":
