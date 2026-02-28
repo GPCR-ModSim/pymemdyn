@@ -36,7 +36,9 @@ INPUT:
 STRUCTURES:
 -----------
     - hexagon.pdb           # Initial structure of the system, with the receptor centered in the box 
-    - confout.gro           # Final structure of the system (see TIPS)
+    - confout200.pdb        # Pre C-alpha / BW-relaxed structure of the system
+    - confout.pdb           # Final structure of the system
+    - confout.gro           # Final structure of the system (gromacs file, see TIPS)
     - load_gpcr.pml         # Loads the initial structure and the trajectory in pymol
 
 In the "logs" subfolder, you will find the log files of mdrun:  
@@ -111,7 +113,7 @@ With BW distance restraints:
 - If  you  want  to  create  a  PDB file  of  your  system  after  the
 equilibration, with the receptor centered in the box, type:  
 
-    echo 1 0 | gmx trjconv -pbc mol -center -ur compact -f confout.gro -o confout.pdb
+    echo 1 0 | gmx trjconv -pbc mol -center -ur compact -f confout.gro -s topol.tpr -o confout.pdb
 
 - If you want to create an xmgrace graph of the root mean square
   deviation for c-alpha atoms in the 5.0 ns of simulation you can use:  
