@@ -649,10 +649,10 @@ class BasicCollectResults(object):
                                    "input": "1\n0\n"},
 
                        "trjconv_to_pdb":
-                           {"gromacs": "trjconv",  # toBeNumbered
-                                   "options": {"src": "confout.gro",
-                                               "src2": "topol.tpr",
-                                               "tgt": "confout.pdb",
+                           {"gromacs": "trjconv", 
+                                   "options": {"src": "eqProd/confout.gro",
+                                               "src2": "eqProd/topol.tpr",
+                                               "tgt": "eqProd/confout.pdb",
                                                "ur": "compact",
                                                "pbc": "mol"},
                                    "input": "1\n0\n"},
