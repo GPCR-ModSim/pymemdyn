@@ -767,7 +767,7 @@ class BasicCollectResults(object):
                                                                "md_eqCA.log"],
                                                  "tgt_dir": "finalOutput/logs"}},
                        "set_end_7":
-                           {"command": "set_stage_init",  # toBeNumbered
+                           {"command": "set_stage_init",
                                      "options": {"src_dir": "",
                                                  "src_files": ["eqProd/confout.pdb",
                                                                "eq/confout200.pdb"],
