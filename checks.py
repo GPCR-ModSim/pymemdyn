@@ -30,7 +30,28 @@ class CheckProtein():
         self.logger = logging.getLogger('pymemdyn.checks.checkProtein')
         self.aa = AminoAcids()
         self.nr_missing = 0
-        
+
+    def remove_oxt(self, pdb_path):
+        """
+        Remove the C-terminal OXT atoms from the PDB.
+        The reference atom counts in AminoAcids.sideChains have no OXT, so
+        find_missingSideChains would flag every C-terminal residue that has one
+        (MODELLER and AlphaFold structures often do) and MODELLER cannot rebuild a
+        terminal residue. pdb2gmx adds the C-terminal oxygens again later.
+        """
+        with open(pdb_path, 'r') as inf:
+            lines = inf.readlines()
+
+        kept = [line for line in lines
+                if not (line.startswith(('ATOM', 'HETATM')) and line[12:16].strip() == 'OXT')]
+
+        removed = len(lines) - len(kept)
+        if removed:
+            with open(pdb_path, 'w') as outf:
+                outf.writelines(kept)
+            self.logger.info('Removed {} OXT atom(s) from {}'.format(removed, pdb_path))
+        return removed
+
     def find_missingLoops(self, pdb_chain, chain):
         """
         Check if the residue numbering is continuous, write sequence.
@@ -51,7 +72,7 @@ class CheckProtein():
         # Loop over protein.pdb
         for i, line in enumerate(lines):
             splitted = line.split() # Careful here, sometimes columns are stuck together!
-            
+
             # Determine if line is useful
             if not splitted[0] == 'ATOM':
                 if splitted[0] == 'TER': # End of chain
@@ -59,7 +80,7 @@ class CheckProtein():
                     self.logger.debug('found TER at line {}'.format(i))
                     pdbseq += '/'
                 continue # Skip to next line
-            
+
             else: # Useful line
                 try: 
                     resID = int(line[22:26])
@@ -126,10 +147,10 @@ class CheckProtein():
                     for atom in current_atoms:
                         atom_count[atom] += 1
 
-                    amino = residue.resname   
+                    amino = residue.resname
                     self.logger.debug('Residue {}: {} atom counts ({}) | reference atom counts ({}).'.format(residue.id[1], amino, self.aa.sideChains[amino], atom_count))              
                     if self.aa.sideChains[amino] != atom_count:
-                        self.logger.info('Residue {}: {} atom counts ({}) does not match with reference atom counts ({}). It will be deleted from your pdb and replaced with MODELLER'.format(residue.id[1], amino, self.aa.sideChains[amino], atom_count))
+                        self.logger.info('Residue {}: {} atom counts ({}) does not match with reference atom counts ({}). It will be deleted from your pdb and replaced with MODELLER'.format(residue.id[1], amino, atom_count, self.aa.sideChains[amino]))
                         missing_sideChains.append((residue.id[1], amino))
                         residues_to_exclude.append(residue)
                     else:
@@ -156,12 +177,15 @@ class CheckProtein():
         :kwarg work_dir: working directory
         :kwarg tgt1: alignment.pir
         """
-        with open(os.path.join(kwargs["work_dir"], self.pdb), 'r') as in_pdb:
+        pdb_path = os.path.join(kwargs["work_dir"], self.pdb)
+        self.remove_oxt(pdb_path)
+
+        with open(pdb_path, 'r') as in_pdb:
             lines_pdb = in_pdb.readlines()
 
         self.logger.info(f'Identified chains:\t{self.chains}')
         broken_chains = []
-        
+
         for chain in self.chains:
             self.logger.info(f'Checking chain:\t{chain}')
 
