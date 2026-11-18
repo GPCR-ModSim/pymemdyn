@@ -20,7 +20,7 @@ TEMPLATES_DIR = os.path.join(ROOT_DIR, "templates")
 # Define a path to the GROMACS (version 5.0>) binaries. See examples of GROMACS_PATHs below:
 GROMACS_PATH = "/home2/apps/easybuild/software/GROMACS/2023.4-foss-2023a/bin/" 
 #GROMACS cuda
-GROMACS_PATH = "/home2/apps/easybuild/software/GROMACS/2023.3-foss-2023a-CUDA-12.1.1-PLUMED-2.9.0/bin/" 
+#GROMACS_PATH = "/home2/apps/easybuild/software/GROMACS/2023.3-foss-2023a-CUDA-12.1.1-PLUMED-2.9.0/bin/" 
 #GROMACS_PATH = "/usr/bin/gmx"
 #GROMACS_PATH = "/Users/hugo/homebrew/bin/gmx"
 #GROMACS_PATH = "/usr/local/gromacs/bin/gmx"
