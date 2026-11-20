@@ -38,7 +38,7 @@ STRUCTURES:
     - hexagon.pdb           # Initial structure of the system, with the receptor centered in the box 
     - confout200.pdb        # Pre C-alpha / BW-relaxed structure of the system
     - confout.pdb           # Final structure of the system
-    - confout.gro           # Final structure of the system (gromacs file, see TIPS)
+    - confout.gro           # Final structure of the system (see TIPS)
     - load_gpcr.pml         # Loads the initial structure and the trajectory in pymol
 
 In the "logs" subfolder, you will find the log files of mdrun:  

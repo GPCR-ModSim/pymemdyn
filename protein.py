@@ -29,9 +29,9 @@ except:
 
 class System(object):
     def __init__(self, **kwargs):
-        protein_res_names = ["ALA", "ARG", "ASN", "ASP", "ASH", "CYS", "CYX", "GLN", "GLU", "GLH", "GLY", "HIS", 
+        protein_res_names = ["ALA", "ARG", "ASN", "ASP", "ASH", "CYS", "CYX", "GLN", "GLU", "GLY", "HIS", 
                              "HIE", "HID", "HIP", "HISE", "HISD", "HISH", "ILE", "LEU", "LYS", 
-                             "MET", "PHE", "PRO", "SER", "THR", "TRP", "TYR", "VAL",]
+                             "MET", "PHE", "PRO", "SER", "THR", "TRP", "TYR", "VAL", "NH2",]
 
         self.pdb = kwargs["pdb"]
 
@@ -152,6 +152,7 @@ class Protein(object):
         self.pdb = kwargs.get("pdb")
         self.dir = kwargs.get('owndir') or ''
         self.loop_fill = kwargs.get('loopfill') or ''
+        self.proteinforcefield = kwargs.get('proteinforcefield')
 
         self.logger_prot = logging.getLogger('pymemdyn.protein.Protein')
                 
@@ -171,9 +172,9 @@ class Protein(object):
                         chains.append(line[21])
     
         if len(chains) < 2:
-            return Monomer(pdb = self.pdb, chains = chains, dir = self.dir, loopfill = self.loop_fill)
+            return Monomer(pdb = self.pdb, chains = chains, dir = self.dir, loopfill = self.loop_fill, proteinforcefield=self.proteinforcefield)
         elif len(chains) >= 2:
-            return Oligomer(pdb = self.pdb, chains = chains, dir = self.dir, loopfill=self.loop_fill)
+            return Oligomer(pdb = self.pdb, chains = chains, dir = self.dir, loopfill=self.loop_fill, proteinforcefield=self.proteinforcefield)
 
     def calculate_center(self):
         """
@@ -200,6 +201,7 @@ class Monomer(object):
         self.name = "proteins"
         self.type = "proteins"
         self.pdb = kwargs["pdb"]
+        self.proteinforcefield = kwargs.get('proteinforcefield')
         
         self.logger_monomer = logging.getLogger('pymemdyn.protein.Monomer')
         if not os.path.isfile(self.pdb):
@@ -250,12 +252,15 @@ class Monomer(object):
     def _setRes(self):
         """
         Change Histidines and Cysteins in pdb to the format preferred by gromacs.
+        Only applies conversions for OPLS-AA forcefield.
         """
         tgt = open(self.pdb.replace(".pdb", "-his.pdb"), "w")
         self.pdb_his = tgt.name
+        
+        is_opls = self.proteinforcefield and self.proteinforcefield.lower() in ["oplsaa","oplsaam"]
 
         for line in open(self.pdb, "r"):
-            if len(line.split()) > 3:
+            if len(line.split()) > 3 and is_opls:
                 if line.split()[3] == "HIE":
                     tgt.write(line.replace('HIE ','HISE'))
                 elif line.split()[3] == "HID":
@@ -270,10 +275,6 @@ class Monomer(object):
                 tgt.write(line)
             
         tgt.close()
-
-        
-        # os.rename(self.pdb, self.pdb.replace(".pdb", "-oldHIS.pdb"))
-        # os.rename(tgt.name, tgt.name.replace("-his.pdb", ".pdb"))
 
         return tgt.name
 

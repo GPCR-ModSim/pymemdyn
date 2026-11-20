@@ -14,7 +14,6 @@ class AminoAcids():
             'CYS': 'C',
             'GLN': 'Q',
             'GLU': 'E',
-            'GLH': 'E',
             'GLY': 'G',
             'HIS': 'H',
             'HIE': 'H',
@@ -34,7 +33,7 @@ class AminoAcids():
             'TYR': 'Y',
             'VAL': 'V',
             '-': '-',
-            # 'NH2': 'Z'
+            'NH2': 'Z'
         }
         self.codes123 = {
             'A': 'ALA',
@@ -60,7 +59,7 @@ class AminoAcids():
             'Y': 'TYR',
             'V': 'VAL',
             '-': '-',
-            # 'Z': 'NH2'
+            'Z': 'NH2'
         }
         self.sideChains = {
             'ALA': Counter( 
@@ -100,11 +99,6 @@ class AminoAcids():
                 C = 5
             ),
             'GLU': Counter(
-                N = 1,
-                O = 3,
-                C = 5
-            ),
-            'GLH': Counter(
                 N = 1,
                 O = 3,
                 C = 5
@@ -190,7 +184,7 @@ class AminoAcids():
                 O = 1,
                 C = 5
             ),
-            #'NH2': Counter(
-            #    N = 1
-            #),
+            'NH2': Counter(
+                N = 1
+            ),
         }

@@ -36,6 +36,7 @@ class NoQueue(Queue):
         self.command = [self.sh]
 
         self._mdrun = os.path.join(settings.GROMACS_PATH, "gmx mdrun")
+#        self._mdrun = os.path.join(settings.GROMACS_PATH, "gmx_mpi mdrun")
 #        self._mdrun = os.path.join(settings.GROMACS_PATH, "gmx mdrun_mpi") #For triolith
 
     def make_script(self, workdir, options):
@@ -46,12 +47,13 @@ class NoQueue(Queue):
         sh = open(self.sh, "w")
         sh.write("#!/bin/bash\n")
         sh.write("cd %s\n" % workdir)
-        sh.write("%s %s\n" % (self.mdrun, " ".join(options)))
+        ncpus = str(os.environ.get("SLURM_CPUS_PER_TASK",self.num_proc)) # Get the CPUS from the sbatch SLURM script, otherwise use the settings
+        sh.write("%s %s" % (self.mdrun, " ".join(options)))
+        sh.write(" -nt %s\n" % ncpus)
         sh.close()
         os.chmod(self.sh, 0o755)
 
         return True
-
 
 class Slurm(Queue):
     """
@@ -67,9 +69,11 @@ class Slurm(Queue):
             "-c", str(self.num_proc),
             "-t", self.max_time,
             self.sh]
+#
+#        self._mdrun = os.path.join(settings.GROMACS_PATH, "gmx_mpi mdrun")
+        self._mdrun = os.path.join(settings.GROMACS_PATH, "mdrun_slurm") #FOR CUELEBRE
+#        self._mdrun = os.path.join(settings.GROMACS_PATH, "gmx mdrun") # FOR CSB
 
-#        self._mdrun = os.path.join(settings.GROMACS_PATH, "mdrun_slurm") #FOR CUELEBRE
-        self._mdrun = os.path.join(settings.GROMACS_PATH, "gmx mdrun") # FOR CSB
 #        self._mdrun = os.path.join(settings.GROMACS_PATH, "mdrun_mpi") # FOR triolith
 
     def make_script(self, workdir, options):
@@ -85,6 +89,7 @@ class Slurm(Queue):
         sh.write("cd %s  \n" % workdir)
 #        sh.write("%s -ntmpi 16 -ntomp 1  %s -v&> mdrun.log\n" % (self.mdrun, " ".join(options)))
 #        sh.write("%s -nt 8 %s -v&> mdrun.log\n" % (self.mdrun, " ".join(options)))
+#        sh.write("%s %s\n" % (self.mdrun, " ".join(options)))
         sh.write("%s %s -v&> mdrun.log\n" % (self.mdrun, " ".join(options)))
 #        sh.write("mpprun %s %s -v&> mdrun.log\n" % (self.mdrun, " ".join(options))) # Triolith needs mpprun
         sh.close()

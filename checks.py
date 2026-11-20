@@ -368,9 +368,9 @@ class CheckProtein():
         #                             renumber_residues=[first_res, first_res, first_res, first_res])
         
         # Class definition for MODELLER refinement using the AutoModel method
-
-        env = modeller.Environ()
+        env = modeller.environ()
         env.io.atom_files_directory = ['.', '../atom_files']
+
         aln = modeller.Alignment(env, file = f'alignment_{kwargs["chain"]}.pir')
 
         class MyModel(AutoModel):

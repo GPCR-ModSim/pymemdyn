@@ -1,0 +1,11 @@
+#include "ffoplsaam_mod.itp"
+$itp_includes
+#include "${working_dir}popc.itp"
+#include "ions.itp"
+#include "water.itp"
+[ system ]
+; Name
+Membrane protein
+[ molecules ]
+; Compound  #mols
+$mol_includes

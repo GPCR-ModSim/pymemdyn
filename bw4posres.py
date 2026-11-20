@@ -74,7 +74,7 @@ class Run(object):
         self.pdb = pdb
         self.own_dir = kwargs.get("own_dir") or ""
         self.clustal_bin = s.CLUSTAL_BIN
-        self.repo_dir = s.TEMPLATES_DIR
+        self.repo_dir = kwargs.get("repo_dir") or s.ROOT_DIR + "/templates"
         self.loggerbw = logging.getLogger('pymemdyn.bw4posres.Run')
 
     def pdb2fas(self):
@@ -146,6 +146,10 @@ class Run(object):
         Creates a disre.itp file with atom-pair id's to be restrained
         using and NMR-style Heaviside function based on
         Ballesteros-Weinstein tagging.
+
+        the disre.itp contains the reference distances of pairs of C-alpha at conserved GPCR positions in inactive structures
+        used for Ballesteros-Weinstein restrains at the final stage of equilibration
+        BW only works for monomers (utils.py line:207)
         """
         disre = open('disre.itp', 'w')
         readdisre =  open(self.repo_dir + "/disre.itp", 'r')

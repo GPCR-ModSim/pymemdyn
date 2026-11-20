@@ -1,0 +1,45 @@
+; title =  Equilibration with C-alphas Restrained
+define              = -DPOSRES   ; Restraint heavy atoms of the protein (all except H's)
+
+; Run Parameters
+integrator          =  md        ; leap-frog integrator
+dt                  =  0.002     ; in ps !  = 2 fs
+nsteps              =  1250000   ; total 2.5 ns, default 1250000
+
+; Bond Parameters
+constraints         =  all-bonds ; constraint all bonds using LINCS ; SETTLE for water
+
+; Output Parameters
+nstxout             =  25000     ; save coordinates every 50 ps
+nstvout             =  250000    ; save velocities every 500 ps
+nstenergy           =  10000     ; save energies every 20 ps
+nstxtcout           =  25000     ; save xtc trajectory every 50 ps
+
+; Neighbor Searching Parameters
+nstlist             =  5         ; update the neighbor list every 10 fs
+                                 ; This works with twin-cutoff (if rlist < rcoulomb)
+ns_type             =  grid      ; It makes a grid in the box for neighbor list searching
+rlist               =  1.2       ; = rcoulomb with PME
+rcoulomb            =  1.2       ; real-space cutoff 
+rvdw                =  1.2       ; short range vdw cuoff
+
+; Electrostatic Parameters
+coulombtype         =  PME       ; Particle mesh Ewald for LR interactions
+fourierspacing      =  0.15      ; grid dimensions for FFT
+pme_order           =  4         ; interpolation order for FFT
+ewald_rtol          =  1e-5      ; relative accuracy of direct/reciprocal space
+optimize_fft        =  yes
+
+; Temperature Coupling
+Tcoupl              =  nose-hoover           ; thermostat
+tau_t               =  0.5   0.5             ; time constant in ps
+tc-grps             =  Protein non-Protein   ; coupling groups
+ref_t               =  310   310             ; reference temperature
+
+; Pressure Coupling
+Pcoupl              =  Parrinello-Rahman     ; barostat
+tau_p               =  2.0
+compressibility     =  4.5e-5       4.5e-5
+ref_p               =  1.0          1.0
+pcoupltype          =  semiisotropic 
+refcoord_scaling    =  com

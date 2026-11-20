@@ -18,10 +18,16 @@ TEMPLATES_DIR = os.path.join(ROOT_DIR, "templates")
 
 
 # Define a path to the GROMACS (version 5.0>) binaries. See examples of GROMACS_PATHs below:
-#GROMACS_PATH = {your_GROMACS_PATH}
+GROMACS_PATH = "/home2/apps/easybuild/software/GROMACS/2023.4-foss-2023a/bin/" 
+#GROMACS cuda
+#GROMACS_PATH = "/home2/apps/easybuild/software/GROMACS/2023.3-foss-2023a-CUDA-12.1.1-PLUMED-2.9.0/bin/" 
+#GROMACS_PATH = "/usr/bin/gmx"
+#GROMACS_PATH = "/Users/hugo/homebrew/bin/gmx"
+#GROMACS_PATH = "/usr/local/gromacs/bin/gmx"
+#GROMACS_PATH = "/home/hugo/bin/gmx_mpi"
 
 # example GROMACS_PATHs:
-GROMACS_PATH = "/home/apps/apps/.spack/sandybridge/gcc-10.2.0/gromacs-2021-lx52hldze4odq56frfkrf4vdhifqb7do/bin/"                 
+#GROMACS_PATH = "/home/apps/apps/.spack/sandybridge/gcc-10.2.0/gromacs-2021-lx52hldze4odq56frfkrf4vdhifqb7do/bin/"                 
                                                                      #csb.bmc.uu.se
 
 # The paths below are outdated, but can be used as reference to get your 
@@ -51,10 +57,10 @@ CLUSTAL_BIN = os.path.join(ROOT_DIR, ".bin/clustalw_linux")
 QUEUE_NUM_NODES = 1
 
 # Choose how many processor to use in parallel
-QUEUE_NUM_PROCS = 16
+QUEUE_NUM_PROCS = 32
 
 # Choose the maximum alloted time for your run.
 QUEUE_MAX_TIME = "47:59:59"
 
-QUEUE_NUM_TASK = 16
-QUEUE_NTS_NODE = 16
+QUEUE_NUM_TASK = 32
+QUEUE_NTS_NODE = 32

@@ -3,6 +3,7 @@ import argparse
 import os
 
 import settings
+import forcefield_defaults
 from run import Run
 
 import logging
@@ -62,8 +63,8 @@ if __name__ == "__main__":
     parser.add_argument('--res',
                         dest = "restraint",
                         help = "Position restraints during MD production run. Options: bw \
-            (Ballesteros-Weinstein Restrained Relaxation - default), ca (C-Alpha Restrained \
-            Relaxation)",
+            (Ballesteros-Weinstein Restrained Relaxation), ca (C-Alpha Restrained \
+            Relaxation - default)",
                         default = "ca")
                         
     parser.add_argument('-f', "--loop_fill",
@@ -81,8 +82,45 @@ if __name__ == "__main__":
 
     parser.add_argument('-d', '--debug',
                         action="store_true")
+    parser.add_argument('--proteinFF',
+                        dest = "proteinforcefield",
+                        required = True,
+                        help = "Protein forcefield. Fully compatible options are oplsaa, oplsaam, amber14sb (see forcefield_defaults.py). Also accepts provided forcefield files if present in the working directory or in your GROMACS installation (see gromacs pdb2gmx documentation)")
+    parser.add_argument('--waterFF',
+                        dest = "waterforcefield",
+                        default = "",
+                        help = "Water forcefield. Default options are spc for oplsaa protein, tip3p_opls for oplsaam protein and tip3p_amber for amber14sb protein")
+    parser.add_argument('--lipidFF',
+                        dest = "lipidforcefield",
+                        default = "",
+                        help = "Lipid forcefield. Default options are berger united atom for oplsaa and oplsaam, amberLipid21 for amber14sb forcefields")
+    parser.add_argument('--ligandFF',
+                        dest = "ligandforcefield",
+                        default = "",
+                        help = "Ligand parametrization. Currently, only supports parametrization with LigParGen for OPLS forcefields. For AMBER and CHARMM, you must provide the .itp and .ff files")
 
     args = parser.parse_args()
+
+    ff_defaults = forcefield_defaults.get_forcefield_defaults(
+        args.proteinforcefield)
+    if ff_defaults is None:
+        parser.error(
+            'Unknown --proteinFF value: {0}. Supported values: {1}'.format(
+                args.proteinforcefield,
+                ', '.join(sorted(forcefield_defaults.FORCEFIELD_DEFAULTS.keys()))
+            )
+        )
+
+    if not args.waterforcefield:
+        args.waterforcefield = ff_defaults["waterff"]
+    if not args.lipidforcefield:
+        args.lipidforcefield = ff_defaults["lipidff"]
+    if not args.ligandforcefield:
+        args.ligandforcefield = ff_defaults["ligandff"]
+    if args.repo_dir == settings.TEMPLATES_DIR or not args.repo_dir:
+        args.repo_dir = ff_defaults["templates_dir"]
+
+    settings.TEMPLATES_DIR = args.repo_dir
 
     ######## CREATE LOG ###########
 
@@ -133,7 +171,11 @@ if __name__ == "__main__":
               restraint = args.restraint,
               loop_fill = args.loop_fill,
               queue = args.queue,
-              debug = args.debug)
+              debug = args.debug,
+              proteinforcefield = args.proteinforcefield,
+              waterforcefield = args.waterforcefield,
+              lipidforcefield = args.lipidforcefield,
+              ligandforcefield = args.ligandforcefield)
 
     run.moldyn()
 

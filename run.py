@@ -8,6 +8,7 @@ import membrane
 import protein
 import queue
 import settings
+import forcefield_defaults
 
 import logging
 run_logger = logging.getLogger('pymemdyn.run')
@@ -29,7 +30,7 @@ class Run(object):
         """
         self.pdb = pdb
         self.own_dir = kwargs.get("own_dir") or ""
-        self.repo_dir = kwargs.get("repo_dir") or ""
+        self.repo_dir = kwargs.get("repo_dir") or settings.TEMPLATES_DIR
         self.ligand = kwargs.get("ligand") or ""
         self.ligand_charge = kwargs.get("ligand_charge") or ""
         self.protein = 'protein.pdb'
@@ -41,6 +42,10 @@ class Run(object):
         self.queue = kwargs.get("queue") or ""
         self.debug = kwargs.get("debug") or False
         self.debugFast = kwargs.get("debugFast") # obsolete
+        self.proteinforcefield = kwargs.get("proteinforcefield")
+        self.waterforcefield = kwargs.get("waterforcefield")
+        self.lipidforcefield = kwargs.get("lipidforcefield")
+        self.ligandforcefield = kwargs.get("ligandforcefield")
         
         self.logger = logging.getLogger('pymemdyn.run.Run')
   
@@ -64,7 +69,7 @@ class Run(object):
 
         # Prepare protein
         self.logger.debug('Checking # of chains of '+ str(self.protein))
-        self.proteins = protein.Protein(pdb=self.protein, owndir=self.own_dir, loopfill=self.loop_fill).check_number_of_chains()
+        self.proteins = protein.Protein(pdb=self.protein, owndir=self.own_dir, loopfill=self.loop_fill, proteinforcefield=self.proteinforcefield).check_number_of_chains()
         self.logger.debug(f'Protein is a(n) {type(self.proteins)} with {self.proteins.chains} chains')
                 
         try:
@@ -110,7 +115,8 @@ class Run(object):
         
         # Prepare membrane
         self.logger = logging.getLogger('pymemdyn.run.Run')
-        self.membr = membrane.Membrane()
+        self.membr = membrane.Membrane(repo_dir=self.repo_dir,
+                                        lipidforcefield=self.lipidforcefield)
 
         # Prepare complex
         self.objects = self.cofactors + ['proteins']
@@ -131,7 +137,12 @@ class Run(object):
 
         full_complex.membrane = self.membr
 
-        self.g = gromacs.Gromacs(membrane_complex=full_complex)
+        self.g = gromacs.Gromacs(membrane_complex=full_complex,
+                                  repo_dir=self.repo_dir,
+                                  proteinforcefield=self.proteinforcefield,
+                                  waterforcefield=self.waterforcefield,
+                                  lipidforcefield=self.lipidforcefield,
+                                  ligandforcefield=self.ligandforcefield)
 
         # NOTE: If not provided in command line, self.queue is set to
         # NoQueue
@@ -159,19 +170,18 @@ class Run(object):
         self.logger.debug(f'current files/dirs: {os.listdir(self.own_dir)}')
 
 
-
-        template_files = os.listdir(settings.TEMPLATES_DIR)
+        template_files = os.listdir(self.repo_dir)
         generated_files = ["ener_EQ.edr", "ffoplsaanb_mod.itp", "GROMACS.log", "hexagon.pdb", "index.ndx", 
                             "ligand_ha.ndx", "MD_output.tgz", "mdout.mdp", "mdrun.sh", "min.pdb", 
                             "output.pdb", "popc.gro", "popc.pdb", "posre.itp", "posre_lig.itp", 
                             "posre_alo.itp","pressure.log", "pressure.xvg", "pressure2.log", 
                             "pressure2.xvg", "protein.pdb", "protein.itp", "protein.top", 
                             "protein-his.pdb", "protein-modeller-his.pdb", "protein-modeller.pdb",
-                            "protein_ca200.itp", "proteinopls.fasta", "proteinopls.pdb", 
-                            "proteinopls_bw.aln", "proteinopls_CA.pdb", "protpopc.pdb",
+                            "protein_ca200.itp", "protein_gmx.fasta", "protein_gmx.pdb", 
+                            "protein_gmx_bw.aln", "protein_gmx_CA.pdb", "protpopc.pdb",
                             "rmsd-all-atom-vs-start.xvg", "rmsd-backbone-vs-start.xvg", 
                             "rmsd-calpha-vs-start.xvg", "rmsf-per-residue.xvg", "temp.log", "temp.xvg", 
-                            "temp2.log", "temp2.xvg", "tmp.pdb", "tmp_proteinopls.pdb",  "topol.tpr", 
+                            "temp2.log", "temp2.xvg", "tmp.pdb", "tmp_protein_gmx.pdb",  "topol.tpr", 
                             "tot_ener.log", "tot_ener.xvg", "tot_ener2.log", "tot_ener2.xvg", 
                             "traj_EQ.xtc", "traj_pymol.xtc", "volume.log", "volume.xvg", 
                             "volume2.log", "volume2.xvg", "water.gro", "water.pdb"]
@@ -246,6 +256,14 @@ class Run(object):
         """
         Run all steps in a molecular dynamics simulation of a membrane protein
         """
+
+        # pdb2gmx looks for <ff_name>.ff in the run folder first before checking on gromacs/share/top
+        # used for oplsaam forcefield (oplsaam.ff) and amber14sb (amber14sb.ff), which are not present in the gromacs2023 version
+        ff_name = f"{self.proteinforcefield}.ff"
+        ff_dir = os.path.join(forcefield_defaults.get_forcefield_defaults(self.proteinforcefield)["templates_dir"], ff_name)
+        if os.path.isdir(ff_dir) and not os.path.isdir(ff_name):
+            shutil.copytree(ff_dir, ff_name)
+
         if self.restraint == "bw":
             steps = ["Init", "Minimization", "Equilibration", "Relax", 
                     "BWRelax", "BWCollectResults"]

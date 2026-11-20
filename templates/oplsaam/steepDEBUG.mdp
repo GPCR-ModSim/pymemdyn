@@ -1,0 +1,12 @@
+constraints = none
+integrator      = steep
+nsteps          = 10
+nstlist         = 1
+ns-type         = Grid
+pbc             = xyz
+rlist           = 0.8
+coulombtype     = cut-off
+rcoulomb        = 1.4
+vdw-type        = cut-off
+rvdw            = 1.4
+nstenergy       = 20

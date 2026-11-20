@@ -1,0 +1,20 @@
+Terminal atom-type fix (restores pdb2gmx compatibility)
+=======================================================
+The distributed OPLS-AA/M GROMACS force field referenced 8 terminal atom types in
+its terminus databases (aminoacids.n.tdb / aminoacids.c.tdb) that were missing from
+atomtypes.atp and ffnonbonded_new.itp, so `gmx pdb2gmx` aborted for every protein
+("Atom type oplsm_298 ... has not been defined").
+
+OPLS-AA/M reparametrizes only torsions; nonbonded terms are inherited unchanged from
+OPLS-AA (Robertson, Tirado-Rives, Jorgensen, JCTC 2015). The 8 types were therefore
+restored with the exact Lennard-Jones parameters and bond types of their base OPLS-AA
+equivalents (same OPLS numbers):
+
+  oplsm_298, oplsm_299            CT_2   sigma 0.35000  epsilon 0.276144   (= opls_298/299)
+  oplsm_906, oplsm_912            CT     sigma 0.35000  epsilon 0.276144   (= opls_906/912)
+  oplsm_900, oplsm_901            NT     sigma 0.33000  epsilon 0.711280   (= opls_900/901)
+  oplsm_909, oplsm_910            H      sigma 0        epsilon 0          (= opls_909/910)
+
+Per-atom charges come from the terminus databases (unchanged). Validated end-to-end:
+pdb2gmx -> grompp produces a valid .tpr for ubiquitin (net -0.000 e) and lysozyme
+(net +8 e) with both TIP3P and TIP4P. Values sourced from GROMACS base oplsaa.ff.

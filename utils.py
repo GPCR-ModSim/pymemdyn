@@ -4,7 +4,8 @@ from string import Template
 
 import bw4posres
 import protein
-
+import settings
+import forcefield_defaults
 import logging
 logger_utils = logging.getLogger('pymemdyn.utils')
 
@@ -116,14 +117,12 @@ def make_cat(dir1, dir2, name):
 
     return traj_src
 
-def make_ffoplsaanb(complex = None):
+def make_ff(complex = None, proteinff = None):
     """
-    Join all OPLS force fields needed to run the simulation
+    Join all atomtypes needed to run the simulation.
     """
-    ff = os.path.join(os.path.dirname(os.path.realpath(__file__)),
-                      "templates", "ffoplsaanb_")
-
-    base = "{0}base.itp".format(ff) # This is the ff for proteins and other
+    base = forcefield_defaults.get_forcefield_defaults(proteinff)["ff_nb"]
+    logger_utils.debug(f'base ff: {base}')
 
     to_concat = [base]
     for key, value in vars(complex).items():
@@ -131,12 +130,12 @@ def make_ffoplsaanb(complex = None):
             to_concat.extend([getattr(complex, key).force_field])
 
     output = "[ atomtypes ]\n"
+    logger_utils.debug(f'files to concat: {to_concat}')
     for ff_i in to_concat:
         output += open(ff_i).read()
         if not output.endswith("\n"): output += "\n"
 
-    open("ffoplsaanb_mod.itp", "w").write(output)
-
+    open("ffnonbonded.itp", "w").write(output)
     return True
 
 
@@ -168,11 +167,12 @@ def make_ffoplsaanb(complex = None):
     return True
 '''
 
-def make_topol(template_dir = \
-    os.path.join(os.path.dirname(os.path.realpath(__file__)), "templates"),
+def make_topol(template_dir = None,
     target_dir = "",  # Dir where topol.top should land
     working_dir = "", # Dir where script is working
     complex = None):  # The MembraneComplex object to deal
+    if template_dir is None:
+        template_dir = settings.TEMPLATES_DIR
     """
     Make the topol starting from our topol.top template
     """
@@ -253,3 +253,138 @@ def tar_out(src_dir = [], tgt = []):
     t_f.close()
     os.chdir(base_dir)
 
+########################################################################
+
+# AMBER - CHARMM
+
+########################################################################
+
+def get_mapping(csv_path):
+    amber_to_charmm = {}
+    charmm_to_amber = {}
+    with open(csv_path, 'r') as f:
+        import csv
+        reader = csv.reader(f)
+        for row in reader:
+            if len(row) > 3 and row[0] == "POPC":
+                charmm_str = row[2].strip()
+                amber_str = row[3].strip()
+                c_parts = charmm_str.split()
+                a_parts = amber_str.split()
+                if len(c_parts) == 2 and len(a_parts) == 2:
+                    c_atom, c_res = c_parts[0], c_parts[1]
+                    a_atom, a_res = a_parts[0], a_parts[1]
+                    amber_to_charmm[(a_res, a_atom)] = (c_res, c_atom)
+                    charmm_to_amber[(c_res, c_atom)] = (a_res, a_atom)
+    return amber_to_charmm, charmm_to_amber
+
+def amber2charmm(src="", tgt="", **kwargs):
+    """
+    Translates Amber Lipid21 residues (PA, PC, OL) to POPC using charmmlipid2amber.csv.
+    """
+    import os
+    csv_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "charmmlipid2amber.csv")
+    amber_to_charmm, _ = get_mapping(csv_path)
+    
+    is_gro = src.endswith(".gro")
+    with open(src, "r") as f:
+        lines = f.readlines()
+        
+    out_lines = []
+    
+    for i, line in enumerate(lines):
+        if is_gro:
+            if i < 2 or i == len(lines)-1:
+                out_lines.append(line)
+                continue
+            resname = line[5:10].strip()
+            atomname = line[10:15].strip()
+            if resname in ["PA", "PC", "OL"]:
+                key = (resname, atomname)
+                if key in amber_to_charmm:
+                    c_res, c_atom = amber_to_charmm[key]
+                    new_resname = c_res.rjust(5)
+                    new_atomname = c_atom.rjust(5)
+                    # Renumber residues uniquely in GRO format (columns 1-5, 1-indexed based on 134 atoms per lipid)
+                    residue_number = ((i - 2) // 134) + 1
+                    res_num_str = str(residue_number).rjust(5)
+                    out_lines.append(res_num_str + new_resname + new_atomname + line[15:])
+                else:
+                    out_lines.append(line)
+            else:
+                out_lines.append(line)
+        else:
+            if not line.startswith("ATOM"):
+                out_lines.append(line)
+                continue
+            resname = line[17:21].strip()
+            atomname = line[12:16].strip()
+            if resname in ["PA", "PC", "OL"]:
+                key = (resname, atomname)
+                if key in amber_to_charmm:
+                    c_res, c_atom = amber_to_charmm[key]
+                    new_resname = c_res.ljust(4)
+                    new_atomname = c_atom.center(4)
+                    out_lines.append(line[:12] + new_atomname + " " + new_resname + line[21:])
+                else:
+                    out_lines.append(line)
+            else:
+                out_lines.append(line)
+                
+    with open(tgt if tgt else src, "w") as f:
+        f.writelines(out_lines)
+    return True
+
+def charmm2amber(src="", tgt="", **kwargs):
+    """
+    Reads coordinate file. Converts POPC back to PA, PC, OL using mapping.
+    """
+    import os
+    csv_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "charmmlipid2amber.csv")
+    _, charmm_to_amber = get_mapping(csv_path)
+        
+    is_gro = src.endswith(".gro")
+    with open(src, "r") as f:
+        lines = f.readlines()
+        
+    out_lines = []
+    
+    for i, line in enumerate(lines):
+        if is_gro:
+            if i < 2 or i == len(lines)-1:
+                out_lines.append(line)
+                continue
+            resname = line[5:10].strip()
+            atomname = line[10:15].strip()
+            if resname in ["POPC", "POP"]:
+                key = ("POPC", atomname)
+                if key in charmm_to_amber:
+                    a_res, a_atom = charmm_to_amber[key]
+                    new_resname = a_res.rjust(5)
+                    new_atomname = a_atom.rjust(5)
+                    out_lines.append(line[:5] + new_resname + new_atomname + line[15:])
+                else:
+                    out_lines.append(line)
+            else:
+                out_lines.append(line)
+        else:
+            if not line.startswith("ATOM"):
+                out_lines.append(line)
+                continue
+            resname = line[17:21].strip()
+            atomname = line[12:16].strip()
+            if resname in ["POPC", "POP"]:
+                key = ("POPC", atomname)
+                if key in charmm_to_amber:
+                    a_res, a_atom = charmm_to_amber[key]
+                    new_resname = a_res.ljust(4)
+                    new_atomname = a_atom.center(4)
+                    out_lines.append(line[:12] + new_atomname + " " + new_resname + line[21:])
+                else:
+                    out_lines.append(line)
+            else:
+                out_lines.append(line)
+                
+    with open(tgt if tgt else src, "w") as f:
+        f.writelines(out_lines)
+    return True

@@ -53,8 +53,12 @@ class GromacsMessages(object):
                 if line.startswith(error):
                     if error == "Fatal error:":
                         self.logger_groerrors.error("\n\nGROMACS FATAL ERROR:\n")
-                        j = self.gro_err.index('of the License, or (at your option) any later version.')
-                        self.logger_groerrors.error('\n'.join(self.gro_err[j+1:]))
+                        try:
+                            j = self.gro_err.index('of the License, or (at your option) any later version.')
+                            self.logger_groerrors.error('\n'.join(self.gro_err[j+1:]))
+                        except ValueError:
+                            # Print the last 40 lines if the license string is missing
+                            self.logger_groerrors.error('\n'.join(self.gro_err[-40:]))
                         self.logger_groerrors.error("\n\n GROMACS FATAL ERROR\n")
 
                     raise self.e[error](self.command, error)

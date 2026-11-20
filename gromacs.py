@@ -5,6 +5,7 @@ import shutil
 import subprocess
 
 import broker
+import forcefield_defaults
 import groerrors
 import protein
 import recipes
@@ -19,7 +20,16 @@ class Gromacs(object):
         self.logger = logging.getLogger('pymemdyn.gromacs.Gromacs')
         self.broker = kwargs.get("broker") or broker.Printing()
         self._membrane_complex = None
-        self.wrapper = Wrapper()
+        self.repo_dir = kwargs.get("repo_dir") or settings.TEMPLATES_DIR
+        self.proteinforcefield = kwargs.get("proteinforcefield")
+        self.waterforcefield = kwargs.get("waterforcefield")
+        self.lipidforcefield = kwargs.get("lipidforcefield")
+        self.ligandforcefield = kwargs.get("ligandforcefield")
+        self.wrapper = Wrapper(repo_dir=self.repo_dir,
+                               proteinforcefield=self.proteinforcefield,
+                               waterforcefield=self.waterforcefield,
+                               lipidforcefield=self.lipidforcefield,
+                               ligandforcefield=self.ligandforcefield)
         logging.basicConfig(filename='GROMACS.log',
                             format='%(asctime)s %(message)s',
                             datefmt='%m/%d/%Y %I:%M:%S',
@@ -53,6 +63,8 @@ class Gromacs(object):
         self.membrane_complex.membrane.lipids_down = 0
         self.membrane_complex.membrane.n_wats = 0
 
+        amber_lipid_resnames = {"PA", "PC", "OL"}
+
         if hasattr(self.membrane_complex.complex, "waters"):
             # Careful, some waters belong to crystal, not solvent
             self.membrane_complex.membrane.n_wats -= \
@@ -60,15 +72,28 @@ class Gromacs(object):
 
         for line in src:
             if len(line.split()) > 2:
-                # This N4 and POP are the lipid markers
-                if line.split()[2] == "N4" and line.split()[3] == "POP":
-                    tgt.write(line)
-                    if (float(line.split()[7]) >= half):
-                        self.membrane_complex.membrane.lipids_up += 1
-                    elif (float(line.split()[7]) < half):
-                        self.membrane_complex.membrane.lipids_down += 1
-                elif line.split()[2] == "OW":  # Water marker
-                    self.membrane_complex.membrane.n_wats += 1
+                fields = line.split()
+                atom_name = fields[2]
+                resname = fields[3]
+                if self.lipidforcefield == "berger":
+                # Default berger residue name
+                    if atom_name == "N4" and resname == "POP":
+                        tgt.write(line)
+                        if (float(fields[7]) >= half):
+                            self.membrane_complex.membrane.lipids_up += 1
+                        elif (float(fields[7]) < half):
+                            self.membrane_complex.membrane.lipids_down += 1
+                    elif line.split()[2] == "OW":  # Water marker
+                        self.membrane_complex.membrane.n_wats += 1
+                elif self.lipidforcefield and self.lipidforcefield.lower() == "amberlipid21":
+                    if atom_name == "N31" and resname in amber_lipid_resnames:
+                        tgt.write(line)
+                        if (float(fields[7]) >= half):
+                            self.membrane_complex.membrane.lipids_up += 1
+                        elif (float(fields[7]) < half):
+                            self.membrane_complex.membrane.lipids_down += 1
+                    elif line.split()[2] == "OW":  # Water marker
+                        self.membrane_complex.membrane.n_wats += 1
 
         src.close()
         tgt.close()
@@ -165,7 +190,7 @@ class Gromacs(object):
 
         # Create the "membr" group
         n_group += 1
-        input += " r POP* | r CHO | r LIP\n"
+        input += " r PA | r PC | r OL | r POP* | r CHO | r LIP \n"
         input += "name {0} membr\n".format(n_group)
 
         # This makes a separate group for each chain (if more than one)
@@ -425,10 +450,10 @@ class Gromacs(object):
         # Init, Minimization, Equilibration...
 
         if hasattr(recipes, recipe):
-            self.recipe = getattr(recipes, recipe)(debugFast=debugFast, membrane_complex=self.membrane_complex.complex, full_relax=full_relax)
+            self.recipe = getattr(recipes, recipe)(debugFast=debugFast, membrane_complex=self.membrane_complex.complex, full_relax=full_relax, proteinforcefield=self.proteinforcefield, waterforcefield=self.waterforcefield, lipidforcefield=self.lipidforcefield, ligandforcefield=self.ligandforcefield)
         elif hasattr(recipes, "Basic" + stage):
             # Fall back to Basic recipe if no specific where found
-            self.recipe = getattr(recipes, "Basic" + stage)(debugFast=debugFast, membrane_complex=self.membrane_complex.complex, full_relax=full_relax)
+            self.recipe = getattr(recipes, "Basic" + stage)(debugFast=debugFast, membrane_complex=self.membrane_complex.complex, full_relax=full_relax, proteinforcefield=self.proteinforcefield, waterforcefield=self.waterforcefield, lipidforcefield=self.lipidforcefield, ligandforcefield=self.ligandforcefield)
 
         return True
 
@@ -484,12 +509,28 @@ class Gromacs(object):
 
     def set_grompp(self, **kwargs):
         """
-        set_grompp: Copy template files to working dir
+        set_grompp: Copy template files to working dir using forcefield-specific templates
         """
-        for repo_src in kwargs.keys():
-            shutil.copy(os.path.join(
-                self.repo_dir, kwargs[repo_src]),
-                repo_src)
+        defaults = forcefield_defaults.get_set_grompp_files(
+            self.proteinforcefield,
+            self.lipidforcefield,
+            self.waterforcefield)
+
+        file_map = {}
+        for dest, value in defaults.items():
+            file_map[dest] = value.copy()
+
+        for dest, src in kwargs.items():
+            file_map[dest] = {"src": src, "dir": self.repo_dir}
+
+        for dest, file_info in file_map.items():
+            src_dir = file_info.get("dir") or self.repo_dir
+            src_name = file_info.get("src")
+            src_path = os.path.join(src_dir, src_name)
+            if not os.path.exists(src_path):
+                logger.warning(f"Template file not found for this forcefield: {src_path}")
+                continue
+            shutil.copy(src_path, dest)
 
         return True
 
@@ -567,20 +608,29 @@ class Gromacs(object):
 
     def set_popc(self, tgt=""):
         """
-        set_popc: Create a pdb file only with the lipid bilayer (POP), no waters.
+        set_popc: Create a pdb file only with the lipid bilayer, no waters.
         Set some measures on the fly (height of the bilayer)
         """
+        # Define lipid markers based on forcefield
+        if self.lipidforcefield and self.lipidforcefield.lower() == "amberlipid21":
+            lipid_resnames = {"PA", "PC", "OL"}
+        else:
+            # Default to berger (POP)
+            lipid_resnames = {"POP"}
+        
         tgt = open(tgt, "w")
         pops = []
 
         for line in open(self.membrane_complex.membrane.pdb, "r"):
             if len(line.split()) > 7:
-                if line.split()[3] == "POP":
+                if line.split()[3] in lipid_resnames:
                     tgt.write(line)
                     pops.append(float(line.split()[7]))
 
         tgt.close()
-        self.membrane_complex.membrane.bilayer_z = max(pops) - min(pops)
+        if pops:
+            self.membrane_complex.membrane.bilayer_z = max(pops) - min(pops)
+            self.logger.debug('Bilayer z: %f', self.membrane_complex.membrane.bilayer_z)
 
         return True
 
@@ -596,8 +646,14 @@ class Gromacs(object):
             if line[:4] == "ATOM":
                 z_tot.append(float(line[46:54]))
                 
-                if line[17:20] == "POP" and line[13:15] == "N4":
-                    z_mem.append(float(line[46:54]))
+                atom_name = line[12:16].strip()
+                lipid_resname = line[17:20].strip()
+                if self.lipidforcefield and self.lipidforcefield.lower() == "amberlipid21":
+                    if lipid_resname in {"PA", "PC", "OL"} and atom_name == "N31":
+                        z_mem.append(float(line[46:54]))
+                else:
+                    if lipid_resname == "POP" and atom_name == "N4":
+                        z_mem.append(float(line[46:54]))
         
         if "solvate2" in kwargs.keys():
             correction = (sum(z_tot)/len(z_tot)-sum(z_mem)/len(z_mem))/10
@@ -613,7 +669,7 @@ class Gromacs(object):
                 
         else:
             self.membrane_complex.complex.center_z = (sum(z_tot)/len(z_tot))/10
-        
+        logger.debug('Protein center z: %f', self.membrane_complex.complex.center_z)
         return True
 
     def set_protein_size(self, **kwargs):
@@ -632,7 +688,6 @@ class Gromacs(object):
                     self.set_box_sizes()
 
                 break
-
         return True
 
     def set_stage_init(self, **kwargs):
@@ -650,8 +705,14 @@ class Gromacs(object):
 
         if "repo_files" in kwargs.keys():
             for repo_file in kwargs["repo_files"]:
-                shutil.copy(os.path.join(self.repo_dir, repo_file),
-                            os.path.join(kwargs["tgt_dir"], repo_file))
+                paths_to_try = [
+                    os.path.join(self.repo_dir, repo_file),
+                    os.path.join(os.path.dirname(self.repo_dir), repo_file)
+                ]
+                for p in paths_to_try:
+                    if os.path.exists(p):
+                        shutil.copy(p, kwargs["tgt_dir"])
+                        break
 
         return True
 
@@ -698,7 +759,12 @@ class Wrapper(object):
         # The gromacs to be used
         self.gromacs_dir = settings.GROMACS_PATH
         # The directory where all the files live
-        self.repo_dir = settings.TEMPLATES_DIR
+        self.repo_dir = kwargs.get("repo_dir") or settings.TEMPLATES_DIR
+        # Forcefield defaults (may be None)
+        self.proteinforcefield = kwargs.get("proteinforcefield")
+        self.waterforcefield = kwargs.get("waterforcefield")
+        self.lipidforcefield = kwargs.get("lipidforcefield")
+        self.ligandforcefield = kwargs.get("ligandforcefield")
 
     def _common_io(self, src, tgt):
         """
@@ -844,8 +910,8 @@ class Wrapper(object):
                    "-n", kwargs["index"],
                    "-np", str(kwargs["np"]),
                    "-nn", str(kwargs["nn"]),
-                   "-pname", "NA+",
-                   "-nname", "CL-"]
+                   "-pname", kwargs.get("pname", "NA"),
+                   "-nname", kwargs.get("nname", "CL")]
 
         return command
 
@@ -901,7 +967,7 @@ class Wrapper(object):
         """
         return ["-p", self._setDir(kwargs["top"]),
                 "-i", self._setDir("posre.itp"),
-                "-ignh", "-ff", "oplsaa", "-water", "spc"]
+                "-ignh", "-ff", self.proteinforcefield, "-water", self.waterforcefield.split("_")[0]]
 
     def _mode_solvate(self, kwargs):
         '''
